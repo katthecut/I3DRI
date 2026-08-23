@@ -8,11 +8,17 @@ public class PlayerAttack : MonoBehaviour
 
     public int damage = 10;
 
+    public Transform attackPoint;
+    public float attackRange = 1f;
+    public LayerMask enemyLayer;
+
     private Animator animator;
+    private PlayerMovement playerMovement;
 
     private void Awake()
     {
         animator = GetComponentInChildren<Animator>();
+        playerMovement = GetComponent<PlayerMovement>();
     }
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -27,6 +33,11 @@ public class PlayerAttack : MonoBehaviour
         {
             timeBetweenAttack -= Time.deltaTime;
         }
+
+        if (timeBetweenAttack <= 0f && playerMovement != null)
+        {
+            playerMovement.SetCanMove(true);
+        }
     }
 
     public void Attack(InputAction.CallbackContext context)
@@ -36,6 +47,34 @@ public class PlayerAttack : MonoBehaviour
 
         timeBetweenAttack = startTimeBetweenAttack;
 
+        if (playerMovement != null)
+        {
+            playerMovement.SetCanMove(false);
+        }
+
         animator.SetTrigger("Attack");
+
+        Collider[] enemiesHit = Physics.OverlapSphere(
+            attackPoint.position,
+            attackRange,
+            enemyLayer
+        );
+
+        foreach (Collider enemyCollider in enemiesHit)
+        {
+            EnemyHealth enemyHealth = enemyCollider.GetComponent<EnemyHealth>();
+
+            if (enemyHealth != null)
+            {
+                enemyHealth.TakeDamage(damage);
+            }
+        }
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (attackPoint == null) return;
+
+        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
     }
 }

@@ -6,28 +6,77 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody rb;
     private Animator animator;
 
+    [Header("Movement")]
     public float moveSpeed = 5f;
-    float horizontalMove;
-    float verticalMove;
+    public float rotationSpeed = 720f;
 
+    [Header("Jump")]
+    [SerializeField] private float jumpForce = 4f;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private float groundCheckRadius = 0.2f;
+    [SerializeField] private LayerMask groundLayer;
+
+    private Vector2 moveInput;
     private Vector3 movement;
 
-    void Start()
+    private bool canMove = true;
+    private bool isGrounded;
+
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
+
+        if (rb == null)
+        {
+            Debug.LogError("PlayerMovement requires a Rigidbody.");
+            return;
+        }
+
         rb.useGravity = true;
 
         animator = GetComponentInChildren<Animator>();
     }
 
-    void Update()
+    private void Update()
     {
-        movement = new Vector3(horizontalMove, 0f, verticalMove);
+        if (!canMove)
+        {
+            movement = Vector3.zero;
 
-        if (movement.magnitude > 1f)
+            if (animator != null)
+            {
+                animator.SetBool("Walking", false);
+            }
+
+            return;
+        }
+
+        CheckGrounded();
+
+        Camera kamera = Camera.main;
+
+        if (kamera == null)
+            return;
+
+        Vector3 smjerNaprijed = kamera.transform.forward;
+        Vector3 smjerDesno = kamera.transform.right;
+
+        smjerNaprijed.y = 0f;
+        smjerDesno.y = 0f;
+
+        smjerNaprijed.Normalize();
+        smjerDesno.Normalize();
+
+        movement =
+            smjerNaprijed * moveInput.y +
+            smjerDesno * moveInput.x;
+
+        if (movement.sqrMagnitude > 1f)
+        {
             movement.Normalize();
+        }
 
-        bool isMoving = movement.magnitude > 0.01f;
+        bool isMoving = movement.sqrMagnitude > 0.01f;
 
         if (animator != null)
         {
@@ -35,32 +84,106 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        Vector3 appliedMovement = movement * moveSpeed;
+        if (rb == null)
+            return;
+
+        Vector3 horizontalVelocity = movement * moveSpeed;
 
         rb.linearVelocity = new Vector3(
-            appliedMovement.x,
+            horizontalVelocity.x,
             rb.linearVelocity.y,
-            appliedMovement.z
+            horizontalVelocity.z
         );
 
-        if (movement.magnitude > 0.01f)
+        if (movement.sqrMagnitude > 0.01f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(movement);
-            rb.MoveRotation(Quaternion.Slerp(
+
+            Quaternion newRotation = Quaternion.RotateTowards(
                 rb.rotation,
                 targetRotation,
-                10f * Time.fixedDeltaTime
-            ));
+                rotationSpeed * Time.fixedDeltaTime
+            );
+
+            rb.MoveRotation(newRotation);
         }
     }
 
     public void Move(InputAction.CallbackContext context)
     {
-        Vector2 input = context.ReadValue<Vector2>();
+        moveInput = context.ReadValue<Vector2>();
+    }
 
-        horizontalMove = input.x;
-        verticalMove = input.y;
+    public void Jump(InputAction.CallbackContext context)
+    {
+        if (!context.performed)
+            return;
+
+        if (rb == null)
+            return;
+
+        rb.linearVelocity = new Vector3(
+            rb.linearVelocity.x,
+            jumpForce,
+            rb.linearVelocity.z
+        );
+    }
+
+    private void CheckGrounded()
+    {
+        if (groundCheck == null)
+        {
+            isGrounded = false;
+            return;
+        }
+
+        isGrounded = Physics.CheckSphere(
+            groundCheck.position,
+            groundCheckRadius,
+            groundLayer
+        );
+    }
+
+    public void SetCanMove(bool value)
+    {
+        canMove = value;
+
+        if (!canMove)
+        {
+            moveInput = Vector2.zero;
+            movement = Vector3.zero;
+
+            if (rb != null)
+            {
+                rb.linearVelocity = new Vector3(
+                    0f,
+                    rb.linearVelocity.y,
+                    0f
+                );
+            }
+
+            if (animator != null)
+            {
+                animator.SetBool("Walking", false);
+            }
+        }
+    }
+
+    public void Test()
+    {
+        Debug.Log("Test works");
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (groundCheck == null)
+            return;
+
+        Gizmos.DrawWireSphere(
+            groundCheck.position,
+            groundCheckRadius
+        );
     }
 }
