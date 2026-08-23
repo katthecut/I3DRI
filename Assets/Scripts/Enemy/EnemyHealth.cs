@@ -2,23 +2,42 @@ using UnityEngine;
 
 public class EnemyHealth : MonoBehaviour
 {
-    public float maxHealth = 20f;
-    private float currentHealth;
+    //health
+    private float health;
+    [SerializeField] private float maxHealth = 100f;
+
+    //heart drop
+    [SerializeField] private GameObject heartPrefab;
+    [SerializeField] private float heartSpawnHeight = 1f;
+
+    private bool isDead;
+
+    private Animator animator;
+    private EnemyChest enemyChest;
+
+    public float Health => health;
+    public float MaxHealth => maxHealth;
 
     private void Awake()
     {
-        currentHealth = maxHealth;
+        health = maxHealth;
+
+        animator = GetComponentInChildren<Animator>();
+        enemyChest = GetComponent<EnemyChest>();
     }
 
     public void TakeDamage(float damage)
     {
-        if (damage <= 0f) return;
+        if (isDead)
+            return;
 
-        currentHealth -= damage;
+        if (damage <= 0f)
+            return;
 
-        Debug.Log($"{gameObject.name} primio je {damage} damage. HP: {currentHealth}/{maxHealth}");
+        health -= damage;
+        health = Mathf.Clamp(health, 0f, maxHealth);
 
-        if (currentHealth <= 0f)
+        if (health <= 0f)
         {
             Die();
         }
@@ -26,7 +45,39 @@ public class EnemyHealth : MonoBehaviour
 
     private void Die()
     {
-        Debug.Log($"{gameObject.name} je umro.");
-        Destroy(gameObject);
+        if (isDead)
+            return;
+
+        isDead = true;
+
+        if (enemyChest != null)
+        {
+            enemyChest.enabled = false;
+        }
+
+        if (animator != null)
+        {
+            animator.SetTrigger("Die");
+        }
+
+        Destroy(gameObject, 2f);
+    }
+
+    private void OnDestroy()
+    {
+        if (!isDead)
+            return;
+
+        if (heartPrefab != null)
+        {
+            Vector3 spawnPosition = transform.position;
+            spawnPosition.y += heartSpawnHeight;
+
+            Instantiate(
+                heartPrefab,
+                spawnPosition,
+                Quaternion.identity
+            );
+        }
     }
 }
