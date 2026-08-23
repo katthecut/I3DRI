@@ -12,6 +12,11 @@ public class PlayerAttack : MonoBehaviour
     public float attackRange = 1f;
     public LayerMask enemyLayer;
 
+    [SerializeField] private float defenseDuration = 0.8f;
+
+    private float defenseTimer;
+    private bool isDefending;
+
     private Animator animator;
     private PlayerMovement playerMovement;
 
@@ -21,29 +26,49 @@ public class PlayerAttack : MonoBehaviour
         playerMovement = GetComponent<PlayerMovement>();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Update()
     {
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (timeBetweenAttack > 0)
+        if (timeBetweenAttack > 0f)
         {
             timeBetweenAttack -= Time.deltaTime;
         }
 
-        if (timeBetweenAttack <= 0f && playerMovement != null)
+        if (isDefending)
         {
-            playerMovement.SetCanMove(true);
+            defenseTimer -= Time.deltaTime;
+
+            if (defenseTimer <= 0f)
+            {
+                StopDefense();
+            }
+        }
+
+        //moze opet hodati samo ako nije napad ili defense u tijeku 
+        if (!isDefending &&
+            timeBetweenAttack <= 0f &&
+            playerMovement != null)
+        {
+            PlayerHealth playerHealth = GetComponent<PlayerHealth>();
+
+            if (playerHealth == null || !playerHealth.IsGettingHit())
+            {
+                playerMovement.SetCanMove(true);
+            }
         }
     }
 
     public void Attack(InputAction.CallbackContext context)
     {
-        if (!context.performed) return;
-        if (timeBetweenAttack > 0f) return;
+        if (!context.performed)
+            return;
+
+        //ne moze napadati dok brani
+        if (isDefending)
+            return;
+
+        //attack cooldown
+        if (timeBetweenAttack > 0f)
+            return;
 
         timeBetweenAttack = startTimeBetweenAttack;
 
@@ -62,7 +87,8 @@ public class PlayerAttack : MonoBehaviour
 
         foreach (Collider enemyCollider in enemiesHit)
         {
-            EnemyHealth enemyHealth = enemyCollider.GetComponent<EnemyHealth>();
+            EnemyHealth enemyHealth =
+                enemyCollider.GetComponent<EnemyHealth>();
 
             if (enemyHealth != null)
             {
@@ -71,10 +97,54 @@ public class PlayerAttack : MonoBehaviour
         }
     }
 
+    public void Defense(InputAction.CallbackContext context)
+    {
+        if (!context.performed)
+            return;
+
+        //ne moze poceti defense dok napada
+        if (isDefending)
+            return;
+
+        //prekida trenutni attack
+        timeBetweenAttack = 0f;
+
+        animator.ResetTrigger("Attack");
+
+        isDefending = true;
+        defenseTimer = defenseDuration;
+
+        if (playerMovement != null)
+        {
+            playerMovement.SetCanMove(false);
+        }
+
+        animator.SetTrigger("Defend");
+    }
+
+    private void StopDefense()
+    {
+        isDefending = false;
+
+        if (playerMovement != null)
+        {
+            playerMovement.SetCanMove(true);
+        }
+    }
+
+    public bool IsDefending()
+    {
+        return isDefending;
+    }
+
     private void OnDrawGizmosSelected()
     {
-        if (attackPoint == null) return;
+        if (attackPoint == null)
+            return;
 
-        Gizmos.DrawWireSphere(attackPoint.position, attackRange);
+        Gizmos.DrawWireSphere(
+            attackPoint.position,
+            attackRange
+        );
     }
 }

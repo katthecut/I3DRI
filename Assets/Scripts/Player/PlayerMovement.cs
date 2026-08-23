@@ -6,11 +6,9 @@ public class PlayerMovement : MonoBehaviour
     private Rigidbody rb;
     private Animator animator;
 
-    [Header("Movement")]
-    public float moveSpeed = 5f;
+    public float moveSpeed = 6f;
     public float rotationSpeed = 720f;
 
-    [Header("Jump")]
     [SerializeField] private float jumpForce = 4f;
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.2f;
@@ -22,7 +20,7 @@ public class PlayerMovement : MonoBehaviour
     private bool canMove = true;
     private bool isGrounded;
 
-    private void Start()
+    void Start()
     {
         rb = GetComponent<Rigidbody>();
 
@@ -37,8 +35,10 @@ public class PlayerMovement : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
     }
 
-    private void Update()
+    void Update()
     {
+        CheckGrounded();
+
         if (!canMove)
         {
             movement = Vector3.zero;
@@ -50,8 +50,6 @@ public class PlayerMovement : MonoBehaviour
 
             return;
         }
-
-        CheckGrounded();
 
         Camera kamera = Camera.main;
 
@@ -84,7 +82,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
+    void FixedUpdate()
     {
         if (rb == null)
             return;
@@ -152,7 +150,6 @@ public class PlayerMovement : MonoBehaviour
 
         if (!canMove)
         {
-            moveInput = Vector2.zero;
             movement = Vector3.zero;
 
             if (rb != null)
@@ -169,6 +166,11 @@ public class PlayerMovement : MonoBehaviour
                 animator.SetBool("Walking", false);
             }
         }
+    }
+
+    public bool CanMove()
+    {
+        return canMove;
     }
 
     public void Test()

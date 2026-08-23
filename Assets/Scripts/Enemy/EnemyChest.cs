@@ -5,48 +5,84 @@ public class EnemyChest : MonoBehaviour
     [SerializeField] private Transform player;
 
     [SerializeField] private float detectionDistance = 6f;
-    [SerializeField] private float walkDistance = 4f;
+    [SerializeField] private float losePlayerDistance = 10f;
+    [SerializeField] private float walkDistance = 3f;
+    [SerializeField] private float runAgainDistance = 4.5f;
     [SerializeField] private float attackDistance = 1.5f;
 
     [SerializeField] private float walkSpeed = 2f;
-    [SerializeField] private float runSpeed = 4f;
+    [SerializeField] private float runSpeed = 7f;
 
-    //brzina okretanja prema playeru
-    [SerializeField] private float rotationSpeed = 360f;
+    [SerializeField] private float attackCooldown = 1f;
+    [SerializeField] private int attackDamage = 15;
 
     private Animator animator;
-    private Rigidbody rb;
+    private PlayerHealth playerHealth;
 
     private bool playerDetected = false;
+    private bool isRunning = false;
+    private bool isAttacking = false;
 
-    private float currentSpeed = 0f;
-    private Vector3 movementDirection = Vector3.zero;
+    private float attackTimer;
 
     private void Awake()
     {
         animator = GetComponentInChildren<Animator>();
-        rb = GetComponent<Rigidbody>();
+
+        if (player != null)
+        {
+            playerHealth = player.GetComponent<PlayerHealth>();
+        }
     }
 
     private void Update()
     {
-        if (player == null || animator == null || rb == null)
+        if (player == null || animator == null)
             return;
 
-        float distance = Vector3.Distance(transform.position, player.position);
+        if (attackTimer > 0f)
+        {
+            attackTimer -= Time.deltaTime;
+        }
+
+        Vector3 direction = player.position - transform.position;
+        direction.y = 0f;
+
+        float distance = direction.magnitude;
+
+        if (isAttacking)
+        {
+            TurnTowardsPlayer();
+
+            if (attackTimer <= 0f)
+            {
+                isAttacking = false;
+            }
+
+            return;
+        }
 
         //detekcija playera
         if (!playerDetected && distance <= detectionDistance)
         {
             playerDetected = true;
+            isRunning = true;
+
             animator.SetBool("PlayerDetected", true);
+            animator.SetBool("IsWalking", true);
+            animator.SetBool("IsRunning", true);
         }
 
         if (!playerDetected)
-        {
-            currentSpeed = 0f;
-            movementDirection = Vector3.zero;
+            return;
 
+        //privremeni gubitak playera kada pobjegne dovoljno daleko
+        if (distance > losePlayerDistance)
+        {
+            playerDetected = false;
+            isRunning = false;
+
+            animator.SetBool("PlayerDetected", false);
             animator.SetBool("IsWalking", false);
             animator.SetBool("IsRunning", false);
 
@@ -56,88 +92,103 @@ public class EnemyChest : MonoBehaviour
         //napad
         if (distance <= attackDistance)
         {
-            currentSpeed = 0f;
-            movementDirection = Vector3.zero;
+            isRunning = false;
 
             animator.SetBool("IsWalking", false);
             animator.SetBool("IsRunning", false);
 
-            animator.SetTrigger("Attack");
+            TurnTowardsPlayer();
+
+            if (attackTimer <= 0f)
+            {
+                StartAttack();
+            }
 
             return;
         }
 
-        //hodanje
-        if (distance <= walkDistance)
+        if (isRunning)
         {
-            currentSpeed = walkSpeed;
-
-            animator.SetBool("IsWalking", true);
-            animator.SetBool("IsRunning", false);
+            if (distance <= walkDistance)
+            {
+                isRunning = false;
+            }
         }
-        //trcanje
         else
         {
-            currentSpeed = runSpeed;
+            if (distance > runAgainDistance)
+            {
+                isRunning = true;
+            }
+        }
 
+        if (isRunning)
+        {
             animator.SetBool("IsWalking", true);
             animator.SetBool("IsRunning", true);
-        }
 
-        movementDirection = player.position - transform.position;
-
-        movementDirection.y = 0f;
-
-        if (movementDirection.sqrMagnitude > 0.001f)
-        {
-            movementDirection.Normalize();
+            MoveTowardsPlayer(runSpeed);
         }
         else
         {
-            movementDirection = Vector3.zero;
-            currentSpeed = 0f;
+            animator.SetBool("IsWalking", true);
+            animator.SetBool("IsRunning", false);
+
+            MoveTowardsPlayer(walkSpeed);
         }
-
-        animator.SetFloat("MoveX", movementDirection.x);
-        animator.SetFloat("MoveY", movementDirection.z);
     }
 
-    private void FixedUpdate()
+    private void StartAttack()
     {
-        if (rb == null)
-            return;
+        isAttacking = true;
+        attackTimer = attackCooldown;
 
-        if (movementDirection == Vector3.zero || currentSpeed <= 0f)
-            return;
+        animator.SetBool("IsWalking", false);
+        animator.SetBool("IsRunning", false);
 
-        //okretanje prema playeru
-        RotateTowardsPlayer();
+        animator.SetTrigger("Attack");
 
-        //kretanje prema playeru
-        Vector3 nextPosition =
-            rb.position +
-            movementDirection * currentSpeed * Time.fixedDeltaTime;
-
-        rb.MovePosition(nextPosition);
+        if (playerHealth != null)
+        {
+            playerHealth.TakeDamage(attackDamage);
+        }
     }
 
-    private void RotateTowardsPlayer()
+    private void MoveTowardsPlayer(float speed)
     {
-        Vector3 smjer = player.position - transform.position;
+        Vector3 direction = player.position - transform.position;
+        direction.y = 0f;
 
-        smjer.y = 0f;
-
-        if (smjer.sqrMagnitude <= 0.001f)
+        if (direction.sqrMagnitude <= 0.001f)
             return;
 
-        Quaternion zeljenaRotacija = Quaternion.LookRotation(smjer);
+        direction.Normalize();
 
-        Quaternion novaRotacija = Quaternion.RotateTowards(
-            rb.rotation,
-            zeljenaRotacija,
-            rotationSpeed * Time.fixedDeltaTime
+        transform.position += direction * speed * Time.deltaTime;
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction);
+
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            targetRotation,
+            720f * Time.deltaTime
         );
+    }
 
-        rb.MoveRotation(novaRotacija);
+    private void TurnTowardsPlayer()
+    {
+        Vector3 direction = player.position - transform.position;
+        direction.y = 0f;
+
+        if (direction.sqrMagnitude <= 0.001f)
+            return;
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction);
+
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            targetRotation,
+            720f * Time.deltaTime
+        );
     }
 }

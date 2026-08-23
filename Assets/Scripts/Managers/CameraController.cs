@@ -12,17 +12,12 @@ public class CameraController : MonoBehaviour
     //brzina okretanja kamere
     [SerializeField] private float sensitivity = 0.03f;
 
-    //ogranicenje gledanja lijevo i desno
-    [SerializeField] private float horizontalLimit = 120f;
-
     //ogranicenje gledanja gore i dolje
     [SerializeField] private float minVerticalRotation = -20f;
     [SerializeField] private float maxVerticalRotation = 45f;
 
     private float horizontalRotation;
     private float verticalRotation;
-
-    private float pocetnaHorizontalnaRotacija;
 
     private void Start()
     {
@@ -46,8 +41,6 @@ public class CameraController : MonoBehaviour
             maxVerticalRotation
         );
 
-        pocetnaHorizontalnaRotacija = horizontalRotation;
-
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -63,12 +56,6 @@ public class CameraController : MonoBehaviour
 
             horizontalRotation += pomakMisa.x * sensitivity;
             verticalRotation -= pomakMisa.y * sensitivity;
-
-            horizontalRotation = Mathf.Clamp(
-                horizontalRotation,
-                pocetnaHorizontalnaRotacija - horizontalLimit,
-                pocetnaHorizontalnaRotacija + horizontalLimit
-            );
 
             verticalRotation = Mathf.Clamp(
                 verticalRotation,

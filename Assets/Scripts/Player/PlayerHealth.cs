@@ -9,7 +9,14 @@ public class PlayerHealth : MonoBehaviour
     //ui
     [SerializeField] private HealthBarSystem healthBar;
 
+    [SerializeField] private float getHitDuration = 0.5f;
+
     private bool isDead;
+    private float getHitTimer;
+
+    private Animator animator;
+    private PlayerMovement playerMovement;
+    private PlayerAttack playerAttack;
 
     public float Health => health;
     public float MaxHealth => maxHealth;
@@ -17,6 +24,11 @@ public class PlayerHealth : MonoBehaviour
     private void Awake()
     {
         health = maxHealth;
+
+        animator = GetComponentInChildren<Animator>();
+        playerMovement = GetComponent<PlayerMovement>();
+        playerAttack = GetComponent<PlayerAttack>();
+
         SyncUI();
     }
 
@@ -30,17 +42,24 @@ public class PlayerHealth : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (getHitTimer > 0f)
+        {
+            getHitTimer -= Time.deltaTime;
 
-        if (Input.GetKeyDown("g")) {
-            SetHealth(-20f);
+            if (getHitTimer <= 0f && !isDead)
+            {
+                if (playerMovement != null)
+                {
+                    playerMovement.SetCanMove(true);
+                }
+            }
         }
-        if (Input.GetKeyDown("h")) {
-            SetHealth(20f);
-        } 
-        
 
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            TakeDamage(20f);
+        }
     }
-
     private void SyncUI()
     {
         if (healthBar != null)
@@ -76,7 +95,31 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         if (damage <= 0f) return;
 
+        //ne prima damage dok brani
+        if (playerAttack != null && playerAttack.IsDefending())
+            return;
+
         AddHealth(-damage);
+
+        if (isDead)
+            return;
+
+        if (playerMovement != null)
+        {
+            playerMovement.SetCanMove(false);
+        }
+
+        getHitTimer = getHitDuration;
+
+        if (animator != null)
+        {
+            animator.SetTrigger("GetHit");
+        }
+    }
+
+    public bool IsGettingHit()
+    {
+        return getHitTimer > 0f;
     }
 
     private void Die()
@@ -84,6 +127,14 @@ public class PlayerHealth : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        //animations
+        if (playerMovement != null)
+        {
+            playerMovement.SetCanMove(false);
+        }
+
+        if (animator != null)
+        {
+            animator.SetTrigger("Die");
+        }
     }
 }
