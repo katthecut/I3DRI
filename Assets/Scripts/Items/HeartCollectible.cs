@@ -3,6 +3,7 @@ using UnityEngine;
 public class HeartCollectible : MonoBehaviour
 {
     [SerializeField] private float healAmount = 25f;
+    [SerializeField] private AudioClip collectSound;
 
     private void OnTriggerEnter(Collider other)
     {
@@ -11,6 +12,11 @@ public class HeartCollectible : MonoBehaviour
         if (playerHealth != null)
         {
             playerHealth.AddHealth(healAmount);
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySound(collectSound);
+            }
 
             Destroy(gameObject);
         }

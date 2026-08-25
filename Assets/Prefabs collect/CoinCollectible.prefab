@@ -98,6 +98,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CoinCollectible
   value: 1
+  collectSound: {fileID: 8300000, guid: 6897af3d0eb7f7543ad5947187ed3f17, type: 3}
 --- !u!1001 &4077008660849257447
 PrefabInstance:
   m_ObjectHideFlags: 0

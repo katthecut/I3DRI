@@ -10,6 +10,10 @@ public class EnemyHealth : MonoBehaviour
     [SerializeField] private GameObject heartPrefab;
     [SerializeField] private float heartSpawnHeight = 1f;
 
+    //sounds
+    [SerializeField] private AudioClip deathSound;
+    [SerializeField] private float deathVolume = 1f;
+
     private bool isDead;
 
     private Animator animator;
@@ -58,6 +62,14 @@ public class EnemyHealth : MonoBehaviour
         if (animator != null)
         {
             animator.SetTrigger("Die");
+        }
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(
+                deathSound,
+                deathVolume
+            );
         }
 
         Destroy(gameObject, 2f);

@@ -12,18 +12,19 @@ public class PlayerAttack : MonoBehaviour
     public float attackRange = 1f;
     public LayerMask enemyLayer;
 
-    [SerializeField] private float defenseDuration = 0.8f;
+    [SerializeField] private AudioClip attackSound;
 
-    private float defenseTimer;
     private bool isDefending;
 
     private Animator animator;
     private PlayerMovement playerMovement;
+    private PlayerHealth playerHealth;
 
     private void Awake()
     {
         animator = GetComponentInChildren<Animator>();
         playerMovement = GetComponent<PlayerMovement>();
+        playerHealth = GetComponent<PlayerHealth>();
     }
 
     private void Update()
@@ -33,24 +34,13 @@ public class PlayerAttack : MonoBehaviour
             timeBetweenAttack -= Time.deltaTime;
         }
 
-        if (isDefending)
-        {
-            defenseTimer -= Time.deltaTime;
-
-            if (defenseTimer <= 0f)
-            {
-                StopDefense();
-            }
-        }
-
         //moze opet hodati samo ako nije napad ili defense u tijeku 
         if (!isDefending &&
             timeBetweenAttack <= 0f &&
             playerMovement != null)
         {
-            PlayerHealth playerHealth = GetComponent<PlayerHealth>();
-
-            if (playerHealth == null || !playerHealth.IsGettingHit())
+            if (playerHealth == null ||
+                (!playerHealth.IsGettingHit() && !playerHealth.IsDead))
             {
                 playerMovement.SetCanMove(true);
             }
@@ -60,6 +50,9 @@ public class PlayerAttack : MonoBehaviour
     public void Attack(InputAction.CallbackContext context)
     {
         if (!context.performed)
+            return;
+
+        if (playerHealth != null && playerHealth.IsDead)
             return;
 
         //ne moze napadati dok brani
@@ -78,6 +71,11 @@ public class PlayerAttack : MonoBehaviour
         }
 
         animator.SetTrigger("Attack");
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(attackSound);
+        }
 
         Collider[] enemiesHit = Physics.OverlapSphere(
             attackPoint.position,
@@ -99,34 +97,52 @@ public class PlayerAttack : MonoBehaviour
 
     public void Defense(InputAction.CallbackContext context)
     {
-        if (!context.performed)
+        if (playerHealth != null && playerHealth.IsDead)
             return;
 
-        //ne moze poceti defense dok napada
+        //RMB pritisnut
+        if (context.started)
+        {
+            StartDefense();
+        }
+
+        //RMB pusten
+        if (context.canceled)
+        {
+            StopDefense();
+        }
+    }
+
+    private void StartDefense()
+    {
         if (isDefending)
             return;
 
-        //prekida trenutni attack
+        //prekida trenutni attack cooldown
         timeBetweenAttack = 0f;
 
-        animator.ResetTrigger("Attack");
-
         isDefending = true;
-        defenseTimer = defenseDuration;
 
         if (playerMovement != null)
         {
             playerMovement.SetCanMove(false);
         }
 
-        animator.SetTrigger("Defend");
+        animator.ResetTrigger("Attack");
+        animator.SetBool("IsDefending", true);
     }
 
     private void StopDefense()
     {
+        if (!isDefending)
+            return;
+
         isDefending = false;
 
-        if (playerMovement != null)
+        animator.SetBool("IsDefending", false);
+
+        if (playerMovement != null &&
+            (playerHealth == null || !playerHealth.IsDead))
         {
             playerMovement.SetCanMove(true);
         }

@@ -14,13 +14,25 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float groundCheckRadius = 0.2f;
     [SerializeField] private LayerMask groundLayer;
 
+    [SerializeField] private float firstFootstepDelay = 0.25f;
+    [SerializeField] private float footstepInterval = 0.4f;
+
+    [SerializeField] private AudioClip jumpSound;
+    [SerializeField] private float jumpVolume = 0.7f;
+
+    [SerializeField] private AudioClip walkSound;
+    [SerializeField] private float walkVolume = 1f;
+
     private Vector2 moveInput;
     private Vector3 movement;
 
     private bool canMove = true;
     private bool isGrounded;
+    private bool wasMoving;
 
-    void Start()
+    private float footstepTimer;
+
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
 
@@ -35,13 +47,15 @@ public class PlayerMovement : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
     }
 
-    void Update()
+    private void Update()
     {
         CheckGrounded();
 
         if (!canMove)
         {
             movement = Vector3.zero;
+            wasMoving = false;
+            footstepTimer = 0f;
 
             if (animator != null)
             {
@@ -80,9 +94,43 @@ public class PlayerMovement : MonoBehaviour
         {
             animator.SetBool("Walking", isMoving);
         }
+
+        HandleFootsteps(isMoving);
     }
 
-    void FixedUpdate()
+    private void HandleFootsteps(bool isMoving)
+    {
+        if (!isMoving || !isGrounded)
+        {
+            wasMoving = false;
+            footstepTimer = 0f;
+            return;
+        }
+
+        if (!wasMoving)
+        {
+            wasMoving = true;
+            footstepTimer = firstFootstepDelay;
+            return;
+        }
+
+        footstepTimer -= Time.deltaTime;
+
+        if (footstepTimer <= 0f)
+        {
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySound(
+                    walkSound,
+                    walkVolume
+                );
+            }
+
+            footstepTimer = footstepInterval;
+        }
+    }
+
+    private void FixedUpdate()
     {
         if (rb == null)
             return;
@@ -122,11 +170,22 @@ public class PlayerMovement : MonoBehaviour
         if (rb == null)
             return;
 
+        if (!isGrounded)
+            return;
+
         rb.linearVelocity = new Vector3(
             rb.linearVelocity.x,
             jumpForce,
             rb.linearVelocity.z
         );
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(
+                jumpSound,
+                jumpVolume
+            );
+        }
     }
 
     private void CheckGrounded()
@@ -151,13 +210,15 @@ public class PlayerMovement : MonoBehaviour
         if (!canMove)
         {
             movement = Vector3.zero;
+            wasMoving = false;
+            footstepTimer = 0f;
 
             if (rb != null)
             {
                 rb.linearVelocity = new Vector3(
                     0f,
                     rb.linearVelocity.y,
-                    0f
+                    rb.linearVelocity.z
                 );
             }
 

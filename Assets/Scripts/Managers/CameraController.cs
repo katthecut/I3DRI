@@ -5,14 +5,15 @@ public class CameraController : MonoBehaviour
 {
     [SerializeField] private Transform target;
 
-    //udaljenost kamere i visina
-    [SerializeField] private float distance = 6f;
+    [SerializeField] private float distance = 8f;
     [SerializeField] private float height = 1.5f;
 
-    //brzina okretanja kamere
-    [SerializeField] private float sensitivity = 0.03f;
+    [SerializeField] private float maxDistance = 15f;
+    [SerializeField] private float zoomSpeed = 1f;
 
-    //ogranicenje gledanja gore i dolje
+    [SerializeField] private float minCameraHeight = 0.5f;
+
+    [SerializeField] private float sensitivity = 0.03f;
     [SerializeField] private float minVerticalRotation = -20f;
     [SerializeField] private float maxVerticalRotation = 45f;
 
@@ -22,15 +23,12 @@ public class CameraController : MonoBehaviour
     private void Start()
     {
         if (target == null)
-        {
-            Debug.LogError("CameraController: Player nije postavljen kao Target.");
             return;
-        }
 
-        Vector3 trenutnaRotacija = transform.eulerAngles;
+        Vector3 rotation = transform.eulerAngles;
 
-        horizontalRotation = trenutnaRotacija.y;
-        verticalRotation = trenutnaRotacija.x;
+        horizontalRotation = rotation.y;
+        verticalRotation = rotation.x;
 
         if (verticalRotation > 180f)
             verticalRotation -= 360f;
@@ -39,6 +37,12 @@ public class CameraController : MonoBehaviour
             verticalRotation,
             minVerticalRotation,
             maxVerticalRotation
+        );
+
+        distance = Mathf.Clamp(
+            distance,
+            6f,
+            maxDistance
         );
 
         Cursor.lockState = CursorLockMode.Locked;
@@ -52,33 +56,53 @@ public class CameraController : MonoBehaviour
 
         if (Mouse.current != null)
         {
-            Vector2 pomakMisa = Mouse.current.delta.ReadValue();
+            Vector2 mouseDelta = Mouse.current.delta.ReadValue();
 
-            horizontalRotation += pomakMisa.x * sensitivity;
-            verticalRotation -= pomakMisa.y * sensitivity;
+            horizontalRotation += mouseDelta.x * sensitivity;
+            verticalRotation -= mouseDelta.y * sensitivity;
 
             verticalRotation = Mathf.Clamp(
                 verticalRotation,
                 minVerticalRotation,
                 maxVerticalRotation
             );
+
+            float scroll = Mouse.current.scroll.ReadValue().y;
+
+            //scroll gore = nema zooma, scroll dolje = zoom out
+            if (scroll < 0f)
+            {
+                distance += zoomSpeed;
+            }
+
+            distance = Mathf.Clamp(
+                distance,
+                6f,
+                maxDistance
+            );
         }
 
-        Quaternion rotacijaKamere = Quaternion.Euler(
+        Quaternion rotation = Quaternion.Euler(
             verticalRotation,
             horizontalRotation,
             0f
         );
 
-        Vector3 pozicijaCilja =
+        Vector3 targetPosition =
             target.position + Vector3.up * height;
 
-        Vector3 pozicijaKamere =
-            pozicijaCilja +
-            rotacijaKamere * Vector3.back * distance;
+        Vector3 cameraPosition =
+            targetPosition +
+            rotation * Vector3.back * distance;
 
-        transform.position = pozicijaKamere;
+        //kamera ne smije ici ispod zadane visine
+        if (cameraPosition.y < minCameraHeight)
+        {
+            cameraPosition.y = minCameraHeight;
+        }
 
-        transform.LookAt(pozicijaCilja);
+        transform.position = cameraPosition;
+
+        transform.LookAt(targetPosition);
     }
 }

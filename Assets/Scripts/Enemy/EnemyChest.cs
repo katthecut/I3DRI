@@ -16,6 +16,15 @@ public class EnemyChest : MonoBehaviour
     [SerializeField] private float attackCooldown = 1f;
     [SerializeField] private int attackDamage = 15;
 
+    [SerializeField] private AudioClip attackSound;
+    [SerializeField] private float attackVolume = 1.3f;
+
+    [SerializeField] private AudioClip walkSound;
+    [SerializeField] private float walkVolume = 0.7f;
+
+    [SerializeField] private AudioClip openSound;
+    [SerializeField] private float openVolume = 1f;
+
     private Animator animator;
     private PlayerHealth playerHealth;
 
@@ -24,6 +33,7 @@ public class EnemyChest : MonoBehaviour
     private bool isAttacking = false;
 
     private float attackTimer;
+    private bool wasWalking;
 
     private void Awake()
     {
@@ -39,6 +49,19 @@ public class EnemyChest : MonoBehaviour
     {
         if (player == null || animator == null)
             return;
+
+        if (playerHealth != null && playerHealth.IsDead)
+        {
+            animator.SetBool("PlayerDetected", false);
+            animator.SetBool("IsWalking", false);
+            animator.SetBool("IsRunning", false);
+
+            isAttacking = false;
+            isRunning = false;
+            wasWalking = false;
+
+            return;
+        }
 
         if (attackTimer > 0f)
         {
@@ -62,7 +85,6 @@ public class EnemyChest : MonoBehaviour
             return;
         }
 
-        //detekcija playera
         if (!playerDetected && distance <= detectionDistance)
         {
             playerDetected = true;
@@ -76,7 +98,6 @@ public class EnemyChest : MonoBehaviour
         if (!playerDetected)
             return;
 
-        //privremeni gubitak playera kada pobjegne dovoljno daleko
         if (distance > losePlayerDistance)
         {
             playerDetected = false;
@@ -86,16 +107,19 @@ public class EnemyChest : MonoBehaviour
             animator.SetBool("IsWalking", false);
             animator.SetBool("IsRunning", false);
 
+            wasWalking = false;
+
             return;
         }
 
-        //napad
         if (distance <= attackDistance)
         {
             isRunning = false;
 
             animator.SetBool("IsWalking", false);
             animator.SetBool("IsRunning", false);
+
+            wasWalking = false;
 
             TurnTowardsPlayer();
 
@@ -127,6 +151,11 @@ public class EnemyChest : MonoBehaviour
             animator.SetBool("IsWalking", true);
             animator.SetBool("IsRunning", true);
 
+            if (!wasWalking)
+            {
+                PlayWalkSound();
+            }
+
             MoveTowardsPlayer(runSpeed);
         }
         else
@@ -134,8 +163,15 @@ public class EnemyChest : MonoBehaviour
             animator.SetBool("IsWalking", true);
             animator.SetBool("IsRunning", false);
 
+            if (!wasWalking)
+            {
+                PlayWalkSound();
+            }
+
             MoveTowardsPlayer(walkSpeed);
         }
+
+        wasWalking = true;
     }
 
     private void StartAttack()
@@ -147,6 +183,14 @@ public class EnemyChest : MonoBehaviour
         animator.SetBool("IsRunning", false);
 
         animator.SetTrigger("Attack");
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(
+                attackSound,
+                attackVolume
+            );
+        }
 
         if (playerHealth != null)
         {
@@ -190,5 +234,27 @@ public class EnemyChest : MonoBehaviour
             targetRotation,
             720f * Time.deltaTime
         );
+    }
+
+    private void PlayWalkSound()
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(
+                walkSound,
+                walkVolume
+            );
+        }
+    }
+
+    public void PlayOpenSound()
+    {
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(
+                openSound,
+                openVolume
+            );
+        }
     }
 }

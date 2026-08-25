@@ -2,17 +2,25 @@ using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
 {
-    //health
     private float health;
+
     [SerializeField] private float maxHealth = 100f;
 
-    //ui
     [SerializeField] private HealthBarSystem healthBar;
 
     [SerializeField] private float getHitDuration = 0.5f;
+    [SerializeField] private float invincibilityAfterHit = 0.75f;
+
+    [SerializeField] private AudioClip hitSound;
+    [SerializeField] private float hitVolume = 0.7f;
+
+    [SerializeField] private AudioClip deathSound;
+    [SerializeField] private float deathVolume = 1f;
+    [SerializeField] private float deathSoundDelay = 0.4f;
 
     private bool isDead;
     private float getHitTimer;
+    private float invincibilityTimer;
 
     private Animator animator;
     private PlayerMovement playerMovement;
@@ -20,6 +28,7 @@ public class PlayerHealth : MonoBehaviour
 
     public float Health => health;
     public float MaxHealth => maxHealth;
+    public bool IsDead => isDead;
 
     private void Awake()
     {
@@ -32,15 +41,13 @@ public class PlayerHealth : MonoBehaviour
         SyncUI();
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Start()
     {
         health = MaxHealth;
         SyncUI();
     }
 
-    // Update is called once per frame
-    void Update()
+    private void Update()
     {
         if (getHitTimer > 0f)
         {
@@ -55,11 +62,17 @@ public class PlayerHealth : MonoBehaviour
             }
         }
 
+        if (invincibilityTimer > 0f)
+        {
+            invincibilityTimer -= Time.deltaTime;
+        }
+
         if (Input.GetKeyDown(KeyCode.G))
         {
             TakeDamage(20f);
         }
     }
+
     private void SyncUI()
     {
         if (healthBar != null)
@@ -75,14 +88,17 @@ public class PlayerHealth : MonoBehaviour
 
     public void SetHealth(float value)
     {
-        if (isDead) return;
+        if (isDead)
+            return;
 
         health = Mathf.Clamp(value, 0f, maxHealth);
 
         SyncUI();
 
         if (health <= 0f)
+        {
             Die();
+        }
     }
 
     public void AddHealth(float amount)
@@ -92,10 +108,15 @@ public class PlayerHealth : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
-        if (isDead) return;
-        if (damage <= 0f) return;
+        if (isDead)
+            return;
 
-        //ne prima damage dok brani
+        if (damage <= 0f)
+            return;
+
+        if (invincibilityTimer > 0f)
+            return;
+
         if (playerAttack != null && playerAttack.IsDefending())
             return;
 
@@ -103,6 +124,13 @@ public class PlayerHealth : MonoBehaviour
 
         if (isDead)
             return;
+
+        invincibilityTimer = getHitDuration + invincibilityAfterHit;
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(hitSound, hitVolume);
+        }
 
         if (playerMovement != null)
         {
@@ -122,9 +150,16 @@ public class PlayerHealth : MonoBehaviour
         return getHitTimer > 0f;
     }
 
+    public bool IsInvincible()
+    {
+        return invincibilityTimer > 0f;
+    }
+
     private void Die()
     {
-        if (isDead) return;
+        if (isDead)
+            return;
+
         isDead = true;
 
         if (playerMovement != null)
@@ -135,6 +170,29 @@ public class PlayerHealth : MonoBehaviour
         if (animator != null)
         {
             animator.SetTrigger("Die");
+        }
+
+        StartCoroutine(PlayDeathSoundAfterDelay());
+        StartCoroutine(ShowGameOverAfterDelay());
+    }
+
+    private System.Collections.IEnumerator PlayDeathSoundAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(deathSoundDelay);
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlaySound(deathSound, deathVolume);
+        }
+    }
+
+    private System.Collections.IEnumerator ShowGameOverAfterDelay()
+    {
+        yield return new WaitForSecondsRealtime(2f);
+
+        if (GameOverManager.Instance != null)
+        {
+            GameOverManager.Instance.ShowGameOver();
         }
     }
 }
