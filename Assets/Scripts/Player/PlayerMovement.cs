@@ -234,11 +234,6 @@ public class PlayerMovement : MonoBehaviour
         return canMove;
     }
 
-    public void Test()
-    {
-        Debug.Log("Test works");
-    }
-
     private void OnDrawGizmosSelected()
     {
         if (groundCheck == null)

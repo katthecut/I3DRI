@@ -69,7 +69,6 @@ public class CameraController : MonoBehaviour
 
             float scroll = Mouse.current.scroll.ReadValue().y;
 
-            //scroll gore = nema zooma, scroll dolje = zoom out
             if (scroll < 0f)
             {
                 distance += zoomSpeed;
